@@ -1,6 +1,10 @@
 MIT License
 
+<<<<<<< HEAD
 Copyright (c) 2026 Geekles
+=======
+Copyright (c) 2026 geekles007
+>>>>>>> 54a6c53 (feat: llm_sdk v0.3.0 — noyau + Claude/OpenAI/Gemini)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
