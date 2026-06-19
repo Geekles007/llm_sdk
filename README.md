@@ -9,6 +9,14 @@ SDK). Côté Dart / Flutter, rien d'équivalent : chacun rebricole sa plomberie.
 `llm_sdk` est ce pont propre — multi-provider, streaming, tool calling et
 sorties structurées derrière **une** API.
 
+### Changer d'IA = changer une ligne
+
+![Changer de provider en une ligne](doc/swap.gif)
+
+### Streaming, mot à mot
+
+![Streaming en effet machine à écrire](doc/stream.gif)
+
 ## Les 4 briques
 
 | Brique | Ce que ça fait |

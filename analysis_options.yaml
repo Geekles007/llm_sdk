@@ -13,6 +13,11 @@
 
 include: package:lints/recommended.yaml
 
+analyzer:
+  exclude:
+    # Snippets pseudo-code servant uniquement à générer les GIFs de démo.
+    - tool/gif/swap.dart
+
 # Uncomment the following section to specify additional rules.
 
 # linter:
