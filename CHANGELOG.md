@@ -1,3 +1,9 @@
+## 0.3.1
+
+- README : GIFs de démo (« changer de provider = 1 ligne », streaming mot à mot).
+- pubspec : `screenshots:` (affichés sur pub.dev).
+- Aucun changement de code ni d'API.
+
 ## 0.3.0
 
 - Adaptateur `GeminiProvider` (API Generative Language `generateContent`) :

@@ -2,7 +2,7 @@ name: llm_sdk
 description: >-
   Interface unifiée pour parler aux LLM (Claude, OpenAI, Gemini) depuis
   Dart/Flutter : multi-provider, streaming, tool calling, sorties structurées.
-version: 0.3.0
+version: 0.3.1
 repository: https://github.com/geekles007/llm_sdk
 issue_tracker: https://github.com/geekles007/llm_sdk/issues
 
@@ -12,6 +12,12 @@ topics:
   - claude
   - openai
   - gemini
+
+screenshots:
+  - description: "Changer de provider (Claude, OpenAI, Gemini) tient en une ligne."
+    path: doc/swap.gif
+  - description: "Streaming mot à mot via streamText (effet machine à écrire)."
+    path: doc/stream.gif
 
 environment:
   sdk: ^3.11.5
