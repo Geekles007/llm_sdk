@@ -1,7 +1,7 @@
-// Démo : les 4 briques du SDK sur Claude.
+// Demo: the 4 building blocks of the SDK on Claude.
 //
-// Lance avec :  dart run example/llm_sdk_example.dart
-// (nécessite la variable d'environnement ANTHROPIC_API_KEY)
+// Run with:  dart run example/llm_sdk_example.dart
+// (requires the ANTHROPIC_API_KEY environment variable)
 
 import 'dart:io';
 
@@ -10,72 +10,72 @@ import 'package:llm_sdk/llm_sdk.dart';
 Future<void> main() async {
   final apiKey = Platform.environment['ANTHROPIC_API_KEY'];
   if (apiKey == null) {
-    stderr.writeln('Définis ANTHROPIC_API_KEY pour lancer la démo.');
+    stderr.writeln('Set ANTHROPIC_API_KEY to run the demo.');
     exit(1);
   }
 
-  // On choisit le cerveau. Changer d'IA = changer cette ligne.
+  // Pick the brain. Switching AI = changing this one line.
   final client = LlmClient(ClaudeProvider(apiKey: apiKey));
 
-  // 1) Streaming : le texte arrive mot à mot.
-  stdout.write('Blague : ');
+  // 1) Streaming: the text arrives word by word.
+  stdout.write('Joke: ');
   await for (final chunk in client.streamText([
-    Message.user('Raconte-moi une blague courte.'),
+    Message.user('Tell me a short joke.'),
   ])) {
     stdout.write(chunk);
   }
   stdout.writeln('\n');
 
-  // 2) Tool calling : le SDK orchestre l'aller-retour tout seul.
-  final meteo = Tool(
-    name: 'getMeteo',
-    description: "Donne la météo actuelle d'une ville",
+  // 2) Tool calling: the SDK orchestrates the round-trip on its own.
+  final weather = Tool(
+    name: 'getWeather',
+    description: 'Returns the current weather for a city',
     parameters: {
       'type': 'object',
       'properties': {
-        'ville': {'type': 'string'},
+        'city': {'type': 'string'},
       },
-      'required': ['ville'],
+      'required': ['city'],
     },
-    run: (args) async => 'Il fait 29 °C et humide à ${args['ville']}.',
+    run: (args) async => "It's 29 °C and humid in ${args['city']}.",
   );
 
-  final reponse = await client.generate(
-    [Message.user('Quel temps fait-il à Douala ?')],
-    tools: [meteo],
+  final response = await client.generate(
+    [Message.user('What is the weather in Douala?')],
+    tools: [weather],
   );
-  stdout.writeln('Météo : ${reponse.text}\n');
+  stdout.writeln('Weather: ${response.text}\n');
 
-  // 3) Sorties structurées : on remplit un formulaire typé.
-  final facture = await client.generateObject<Facture>(
-    [Message.user('Facture émise le 3 mars 2026 pour Metchera, 1 250 € TTC.')],
+  // 3) Structured outputs: fill a typed form.
+  final invoice = await client.generateObject<Invoice>(
+    [Message.user('Invoice issued on March 3, 2026 for Metchera, 1,250 EUR.')],
     schema: {
       'type': 'object',
       'properties': {
         'client': {'type': 'string'},
-        'montant': {'type': 'number'},
+        'amount': {'type': 'number'},
         'date': {'type': 'string', 'description': 'ISO 8601'},
       },
-      'required': ['client', 'montant', 'date'],
+      'required': ['client', 'amount', 'date'],
     },
-    fromJson: Facture.fromJson,
+    fromJson: Invoice.fromJson,
   );
   stdout.writeln(
-    'Facture : ${facture.client} — ${facture.montant} € — '
-    '${facture.date.toIso8601String()}',
+    'Invoice: ${invoice.client} — ${invoice.amount} EUR — '
+    '${invoice.date.toIso8601String()}',
   );
 }
 
-class Facture {
+class Invoice {
   final String client;
-  final double montant;
+  final double amount;
   final DateTime date;
 
-  Facture({required this.client, required this.montant, required this.date});
+  Invoice({required this.client, required this.amount, required this.date});
 
-  factory Facture.fromJson(Map<String, dynamic> json) => Facture(
+  factory Invoice.fromJson(Map<String, dynamic> json) => Invoice(
     client: json['client'] as String,
-    montant: (json['montant'] as num).toDouble(),
+    amount: (json['amount'] as num).toDouble(),
     date: DateTime.parse(json['date'] as String),
   );
 }

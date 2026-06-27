@@ -20,16 +20,21 @@ import '../types.dart';
 ///   `{type: function, function: {name}}` ;
 /// - `max_tokens` est optionnel.
 final class OpenAIProvider implements LlmProvider {
+  /// Clé d'API. Optionnelle : les serveurs locaux compatibles OpenAI
+  /// (Ollama, LM Studio, llama.cpp, vLLM) l'ignorent — laisse la chaîne vide.
   final String apiKey;
   final String model;
 
   /// Optionnel chez OpenAI (`null` = laisser le modèle décider).
   final int? maxTokens;
+
+  /// Racine de l'API. Pointe-la sur un endpoint local pour les modèles
+  /// auto-hébergés, p. ex. `http://localhost:11434/v1` (Ollama).
   final String baseUrl;
   final http.Client _http;
 
   OpenAIProvider({
-    required this.apiKey,
+    this.apiKey = '',
     this.model = 'gpt-4o',
     this.maxTokens,
     this.baseUrl = 'https://api.openai.com/v1',
@@ -39,7 +44,8 @@ final class OpenAIProvider implements LlmProvider {
   Uri get _endpoint => Uri.parse('$baseUrl/chat/completions');
 
   Map<String, String> get _headers => {
-    'authorization': 'Bearer $apiKey',
+    // Omis quand vide : un endpoint local n'attend pas de Bearer.
+    if (apiKey.isNotEmpty) 'authorization': 'Bearer $apiKey',
     'content-type': 'application/json',
   };
 

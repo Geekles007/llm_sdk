@@ -59,6 +59,34 @@ void main() {
       expect(authHeader, 'Bearer k');
     });
 
+    test('clé vide (endpoint local) → pas de header Authorization', () async {
+      Map<String, String>? headers;
+      final mock = MockClient((req) async {
+        headers = req.headers;
+        return http.Response(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {'role': 'assistant', 'content': 'ok'},
+                'finish_reason': 'stop',
+              },
+            ],
+          }),
+          200,
+        );
+      });
+      // baseUrl local, aucune clé : cas Ollama / LM Studio / llama.cpp.
+      final provider = OpenAIProvider(
+        baseUrl: 'http://localhost:11434/v1',
+        model: 'llama3.2',
+        httpClient: mock,
+      );
+
+      await provider.generate([Message.user('Salut')]);
+
+      expect(headers!.containsKey('authorization'), isFalse);
+    });
+
     test('encode un appel + résultat d\'outil au format OpenAI', () async {
       late Map<String, dynamic> sentBody;
       final mock = MockClient((req) async {

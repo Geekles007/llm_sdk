@@ -59,10 +59,12 @@ cross-poster le même jour partout.
 
 ## 2. Flutter Gems (fluttergems.dev)
 
-Annuaire curé, gros trafic qualifié. Soumission via leur repo GitHub
-`fluttergemsdev/fluttergems` :
-- Ouvrir une issue « Add package » (ou PR) avec le lien pub.dev.
-- Catégorie suggérée : **AI / Machine Learning** (sous-catégorie LLM).
+Annuaire curé, gros trafic qualifié. Depuis mars 2023, soumission via une
+**issue GitHub** (pas une PR) sur le repo `fluttergems/fluttergems` :
+- Onglet **Issues → New Issue → template « Add a new package »**.
+- Remplir : lien pub.dev + la catégorie.
+- Catégorie exacte : **« ChatGPT, LLM & Generative AI »** (53 packages).
+- Page de contribution : https://fluttergems.dev/contribute/
 - Pitch court : « Unified LLM client — Claude/OpenAI/Gemini, streaming, tools,
   structured outputs. »
 
