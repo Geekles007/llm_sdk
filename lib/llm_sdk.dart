@@ -11,4 +11,5 @@ export 'src/provider.dart';
 export 'src/provider/claude.dart';
 export 'src/provider/gemini.dart';
 export 'src/provider/openai.dart';
+export 'src/retry.dart';
 export 'src/types.dart';

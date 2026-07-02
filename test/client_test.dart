@@ -13,6 +13,9 @@ final class FakeProvider implements LlmProvider {
   /// Capture les `forceTool` reçus.
   final List<String?> receivedForceTools = [];
 
+  /// Capture les [GenerationOptions] reçues (chemin `generate`).
+  final List<GenerationOptions?> receivedOptions = [];
+
   FakeProvider(this.scriptedResponses);
 
   @override
@@ -20,9 +23,11 @@ final class FakeProvider implements LlmProvider {
     List<Message> messages, {
     List<Tool> tools = const [],
     String? forceTool,
+    GenerationOptions? options,
   }) async {
     receivedConversations.add(List.of(messages));
     receivedForceTools.add(forceTool);
+    receivedOptions.add(options);
     return scriptedResponses[_index++];
   }
 
@@ -30,6 +35,7 @@ final class FakeProvider implements LlmProvider {
   Stream<LlmStreamEvent> generateStream(
     List<Message> messages, {
     List<Tool> tools = const [],
+    GenerationOptions? options,
   }) async* {
     for (final r in scriptedResponses) {
       for (final part in r.message.parts) {
@@ -155,6 +161,18 @@ void main() {
       expect(result.montant, 1250.0);
       // Vérifie qu'on a bien forcé l'outil.
       expect(provider.receivedForceTools.single, 'respond');
+    });
+  });
+
+  group('LlmClient — passthrough des GenerationOptions', () {
+    test('transmet les options au provider', () async {
+      final provider = FakeProvider([LlmResponse(Message.assistant('ok'))]);
+      final client = LlmClient(provider);
+      const options = GenerationOptions(temperature: 0.7);
+
+      await client.generateText([Message.user('hi')], options: options);
+
+      expect(provider.receivedOptions.single, same(options));
     });
   });
 

@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../exceptions.dart';
 import '../provider.dart';
+import '../retry.dart';
 import '../types.dart';
 
 /// Adaptateur pour l'API Chat Completions d'OpenAI.
@@ -31,6 +32,10 @@ final class OpenAIProvider implements LlmProvider {
   /// Racine de l'API. Pointe-la sur un endpoint local pour les modèles
   /// auto-hébergés, p. ex. `http://localhost:11434/v1` (Ollama).
   final String baseUrl;
+
+  /// Résilience réseau : retries (backoff) + timeout appliqués aux requêtes.
+  final RetryPolicy retry;
+
   final http.Client _http;
 
   OpenAIProvider({
@@ -38,6 +43,7 @@ final class OpenAIProvider implements LlmProvider {
     this.model = 'gpt-4o',
     this.maxTokens,
     this.baseUrl = 'https://api.openai.com/v1',
+    this.retry = const RetryPolicy(),
     http.Client? httpClient,
   }) : _http = httpClient ?? http.Client();
 
@@ -60,6 +66,7 @@ final class OpenAIProvider implements LlmProvider {
     List<Message> messages, {
     List<Tool> tools = const [],
     String? forceTool,
+    GenerationOptions? options,
     bool stream = false,
   }) {
     return {
@@ -75,6 +82,9 @@ final class OpenAIProvider implements LlmProvider {
           'type': 'function',
           'function': {'name': forceTool},
         },
+      if (options?.temperature != null) 'temperature': options!.temperature,
+      if (options?.topP != null) 'top_p': options!.topP,
+      if (options?.stopSequences != null) 'stop': options!.stopSequences,
     };
   }
 
@@ -152,13 +162,19 @@ final class OpenAIProvider implements LlmProvider {
     List<Message> messages, {
     List<Tool> tools = const [],
     String? forceTool,
+    GenerationOptions? options,
   }) async {
-    final res = await _http.post(
-      _endpoint,
-      headers: _headers,
-      body: jsonEncode(
-        _buildBody(messages, tools: tools, forceTool: forceTool),
+    final body = jsonEncode(
+      _buildBody(
+        messages,
+        tools: tools,
+        forceTool: forceTool,
+        options: options,
       ),
+    );
+    final res = await sendWithRetry(
+      () => _http.post(_endpoint, headers: _headers, body: body),
+      retry,
     );
 
     if (res.statusCode != 200) {
@@ -226,12 +242,16 @@ final class OpenAIProvider implements LlmProvider {
   Stream<LlmStreamEvent> generateStream(
     List<Message> messages, {
     List<Tool> tools = const [],
+    GenerationOptions? options,
   }) async* {
     final request = http.Request('POST', _endpoint)
       ..headers.addAll(_headers)
-      ..body = jsonEncode(_buildBody(messages, tools: tools, stream: true));
+      ..body = jsonEncode(
+        _buildBody(messages, tools: tools, options: options, stream: true),
+      );
 
-    final response = await _http.send(request);
+    // Timeout de connexion seulement : rejouer un flux entamé n'est pas sûr.
+    final response = await _http.send(request).timeout(retry.timeout);
 
     if (response.statusCode != 200) {
       final body = await response.stream.bytesToString();

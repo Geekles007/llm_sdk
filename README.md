@@ -31,6 +31,8 @@ API.
   - [Streaming](#2-streaming)
   - [Tool calling](#3-tool-calling)
   - [Structured outputs](#4-structured-outputs)
+- [Sampling options](#sampling-options)
+- [Retries & timeouts](#retries--timeouts)
 - [Error handling](#error-handling)
 - [Resource cleanup](#resource-cleanup)
 - [API reference](#api-reference)
@@ -156,6 +158,7 @@ final provider = GeminiProvider(
 | `model` | `String` | Model id. Has a sensible default per provider. |
 | `maxTokens` | `int` / `int?` | Required & defaults to `1024` on Claude; optional (`null`) on OpenAI & Gemini. |
 | `baseUrl` | `String` | Available on OpenAI & Gemini to point at a different endpoint. |
+| `retry` | `RetryPolicy` | Backoff retries + per-request timeout. See [Retries & timeouts](#retries--timeouts). |
 | `httpClient` | `http.Client?` | Inject your own client (timeouts, proxy, tests). |
 
 ### Swapping providers
@@ -313,6 +316,58 @@ print(invoice.amount);  // 1250.0
 > No runtime reflection in Flutter: the JSON schema and the `fromJson` are
 > manual in v1. Codegen via annotations is planned for later.
 
+## Sampling options
+
+Tune `temperature`, `topP` and `stopSequences` with a single
+`GenerationOptions`, accepted by every `LlmClient` method. Each provider maps
+it to its own dialect, so the same object works everywhere. Any field left
+`null` is omitted — the model's default applies.
+
+```dart
+final answer = await client.generateText(
+  [Message.user('Write a haiku about Dart.')],
+  options: const GenerationOptions(
+    temperature: 0.9,
+    topP: 0.95,
+    stopSequences: ['\n\n'],
+  ),
+);
+```
+
+It works the same on `generate`, `streamText`, `streamEvents` and
+`generateObject`.
+
+## Retries & timeouts
+
+Every provider is created with a `RetryPolicy`. By default the `generate` path
+retries transient failures — HTTP `408/429/5xx`, timeouts and dropped
+connections — with exponential backoff, and every request is bounded by a
+timeout. Streaming applies the connection timeout only (replaying a started
+stream is unsafe).
+
+```dart
+final provider = ClaudeProvider(
+  apiKey: myKey,
+  retry: const RetryPolicy(
+    maxRetries: 3,                            // extra attempts after the first
+    initialDelay: Duration(milliseconds: 500),
+    backoffFactor: 2.0,                       // 0.5s, 1s, 2s, ...
+    timeout: Duration(seconds: 30),
+  ),
+);
+
+// Opt out entirely:
+final noRetry = OpenAIProvider(apiKey: myKey, retry: RetryPolicy.none);
+```
+
+| Option | Default | Meaning |
+|---|---|---|
+| `maxRetries` | `2` | Extra attempts after the first (`0` disables). |
+| `initialDelay` | `400 ms` | Delay before the first retry. |
+| `backoffFactor` | `2.0` | Multiplier applied between attempts. |
+| `timeout` | `60 s` | Per-request deadline before a `TimeoutException`. |
+| `retryStatusCodes` | `{408, 429, 500, 502, 503, 504}` | Statuses treated as transient. |
+
 ## Error handling
 
 When a provider returns a non-200 HTTP status, or a response cannot be parsed,
@@ -362,6 +417,9 @@ process lifetime — no need to close per request.
 | `streamEvents` | `Stream<LlmStreamEvent> streamEvents(List<Message>, {List<Tool> tools})` | Raw typed event stream. |
 | `generateObject` | `Future<T> generateObject<T>(List<Message>, {required Map schema, required T Function(Map) fromJson, String description})` | Typed structured output. |
 
+Every method above also takes an optional `GenerationOptions options` (see
+[Sampling options](#sampling-options)).
+
 ### Core types
 
 | Type | Purpose |
@@ -393,7 +451,7 @@ LlmClient  ── tool loop, streamText, generateObject
 
 ## Status & limitations
 
-**Current version: 0.4.0**
+**Current version: 0.5.0**
 
 - ✅ Provider-agnostic core: types, contract, `LlmClient` (tool loop,
   `generateObject`, `streamText`).
@@ -401,11 +459,16 @@ LlmClient  ── tool loop, streamText, generateObject
   calling, structured outputs (via forced tool), SSE streaming.
 - ✅ **Local models** via the OpenAI adapter (overridable `baseUrl`, optional
   key): Ollama, LM Studio, llama.cpp, vLLM.
-- ✅ 29 tests (mocked client logic + round-trip/SSE for all 3 providers).
+- ✅ **Sampling options** (`temperature`, `topP`, `stopSequences`) across all
+  providers.
+- ✅ **Retries + timeouts** with exponential backoff (`RetryPolicy`) on the
+  `generate` path.
+- ✅ 42 tests (mocked client logic + round-trip/SSE for all 3 providers +
+  options/retry coverage).
 - 🎯 All 4 building blocks work across the 3 providers **with no change to the
   core** — the abstraction *is* the product, and it held.
 - ⬜ Out of scope for v1: embeddings, vision/audio, cost tracking, caching,
-  retries, multi-step agents beyond the tool loop.
+  multi-step agents beyond the tool loop.
 
 ### Known v1 limitation
 

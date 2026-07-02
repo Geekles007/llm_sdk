@@ -1,3 +1,21 @@
+## 0.5.0
+
+- **Sampling options**: new `GenerationOptions` (`temperature`, `topP`,
+  `stopSequences`) accepted by every `LlmClient` method (`generate`,
+  `generateText`, `streamText`, `streamEvents`, `generateObject`) and mapped by
+  each adapter to its own dialect (`temperature`/`top_p`/`stop` on OpenAI,
+  `stop_sequences` on Claude, `generationConfig` on Gemini). A `null` field is
+  omitted, so the model's default applies.
+- **Network resilience**: new `RetryPolicy` (configurable per provider via the
+  `retry:` constructor argument). The `generate` path now retries transient
+  failures — HTTP 408/429/5xx, timeouts, and dropped connections — with
+  exponential backoff, and every request is bounded by a `timeout`. Streaming
+  applies the connection timeout only (replaying a started stream is unsafe).
+  `RetryPolicy.none` opts out.
+- +12 tests (42 total): options mapping per provider, backoff timing, retry /
+  exhaustion / non-retryable-status / network-drop / timeout, and client-level
+  options passthrough. No breaking change: the new parameters are optional.
+
 ## 0.4.0
 
 - **Local models** via `OpenAIProvider`: `apiKey` is now optional (defaults to

@@ -30,6 +30,7 @@ final class _TypewriterProvider implements LlmProvider {
   Stream<LlmStreamEvent> generateStream(
     List<Message> messages, {
     List<Tool> tools = const [],
+    GenerationOptions? options,
   }) async* {
     for (final word in _reply.split(' ')) {
       await Future<void>.delayed(const Duration(milliseconds: 90));
@@ -45,6 +46,6 @@ final class _TypewriterProvider implements LlmProvider {
     List<Message> messages, {
     List<Tool> tools = const [],
     String? forceTool,
-  }) async =>
-      LlmResponse(Message.assistant(_reply));
+    GenerationOptions? options,
+  }) async => LlmResponse(Message.assistant(_reply));
 }

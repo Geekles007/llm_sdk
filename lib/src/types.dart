@@ -84,6 +84,26 @@ final class Tool {
   });
 }
 
+/// Paramètres d'échantillonnage communs à tous les providers.
+///
+/// Optionnels : un champ `null` n'est pas envoyé, laissant le défaut du
+/// modèle s'appliquer. Chaque adaptateur traduit ces réglages dans son
+/// dialecte (`temperature`/`top_p`/`stop` chez OpenAI, `stop_sequences` chez
+/// Claude, `generationConfig` chez Gemini).
+final class GenerationOptions {
+  /// Créativité de l'échantillonnage (généralement 0.0–2.0 selon le provider).
+  final double? temperature;
+
+  /// Nucleus sampling : ne considère que la masse de probabilité cumulée
+  /// jusqu'à `topP` (0.0–1.0).
+  final double? topP;
+
+  /// Séquences qui, si générées, stoppent la réponse.
+  final List<String>? stopSequences;
+
+  const GenerationOptions({this.temperature, this.topP, this.stopSequences});
+}
+
 /// Pourquoi le modèle a arrêté de générer.
 ///
 /// Normalisé : chaque provider mappe son propre vocabulaire dessus.

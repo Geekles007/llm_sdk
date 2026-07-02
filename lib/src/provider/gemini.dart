@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../exceptions.dart';
 import '../provider.dart';
+import '../retry.dart';
 import '../types.dart';
 
 /// Adaptateur pour l'API Generative Language de Google (Gemini).
@@ -27,6 +28,10 @@ final class GeminiProvider implements LlmProvider {
   final String model;
   final int? maxTokens;
   final String baseUrl;
+
+  /// Résilience réseau : retries (backoff) + timeout appliqués aux requêtes.
+  final RetryPolicy retry;
+
   final http.Client _http;
 
   GeminiProvider({
@@ -34,6 +39,7 @@ final class GeminiProvider implements LlmProvider {
     this.model = 'gemini-1.5-pro',
     this.maxTokens,
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta',
+    this.retry = const RetryPolicy(),
     http.Client? httpClient,
   }) : _http = httpClient ?? http.Client();
 
@@ -56,6 +62,7 @@ final class GeminiProvider implements LlmProvider {
     List<Message> messages, {
     List<Tool> tools = const [],
     String? forceTool,
+    GenerationOptions? options,
   }) {
     final system = messages
         .where((m) => m.role == Role.system)
@@ -67,6 +74,15 @@ final class GeminiProvider implements LlmProvider {
         .map(_encodeMessage)
         .toList();
 
+    // Gemini regroupe max_tokens et l'échantillonnage sous `generationConfig`.
+    final generationConfig = <String, dynamic>{
+      if (maxTokens != null) 'maxOutputTokens': maxTokens,
+      if (options?.temperature != null) 'temperature': options!.temperature,
+      if (options?.topP != null) 'topP': options!.topP,
+      if (options?.stopSequences != null)
+        'stopSequences': options!.stopSequences,
+    };
+
     return {
       'contents': contents,
       if (system.isNotEmpty)
@@ -75,7 +91,7 @@ final class GeminiProvider implements LlmProvider {
             {'text': system},
           ],
         },
-      if (maxTokens != null) 'generationConfig': {'maxOutputTokens': maxTokens},
+      if (generationConfig.isNotEmpty) 'generationConfig': generationConfig,
       if (tools.isNotEmpty)
         'tools': [
           {'functionDeclarations': tools.map(_encodeTool).toList()},
@@ -126,13 +142,23 @@ final class GeminiProvider implements LlmProvider {
     List<Message> messages, {
     List<Tool> tools = const [],
     String? forceTool,
+    GenerationOptions? options,
   }) async {
-    final res = await _http.post(
-      _endpoint('generateContent'),
-      headers: _headers,
-      body: jsonEncode(
-        _buildBody(messages, tools: tools, forceTool: forceTool),
+    final body = jsonEncode(
+      _buildBody(
+        messages,
+        tools: tools,
+        forceTool: forceTool,
+        options: options,
       ),
+    );
+    final res = await sendWithRetry(
+      () => _http.post(
+        _endpoint('generateContent'),
+        headers: _headers,
+        body: body,
+      ),
+      retry,
     );
 
     if (res.statusCode != 200) {
@@ -197,13 +223,17 @@ final class GeminiProvider implements LlmProvider {
   Stream<LlmStreamEvent> generateStream(
     List<Message> messages, {
     List<Tool> tools = const [],
+    GenerationOptions? options,
   }) async* {
     final request =
         http.Request('POST', _endpoint('streamGenerateContent', sse: true))
           ..headers.addAll(_headers)
-          ..body = jsonEncode(_buildBody(messages, tools: tools));
+          ..body = jsonEncode(
+            _buildBody(messages, tools: tools, options: options),
+          );
 
-    final response = await _http.send(request);
+    // Timeout de connexion seulement : rejouer un flux entamé n'est pas sûr.
+    final response = await _http.send(request).timeout(retry.timeout);
 
     if (response.statusCode != 200) {
       final body = await response.stream.bytesToString();

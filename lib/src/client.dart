@@ -19,15 +19,20 @@ final class LlmClient {
   ///
   /// Tant que le modèle demande des outils, on les exécute, on réinjecte
   /// leurs résultats, et on reboucle — jusqu'à une réponse finale ou
-  /// [maxSteps].
+  /// [maxSteps]. [options] transmet les réglages d'échantillonnage au provider.
   Future<LlmResponse> generate(
     List<Message> messages, {
     List<Tool> tools = const [],
+    GenerationOptions? options,
   }) async {
     final conversation = [...messages]; // copie modifiable
 
     for (var step = 0; step < maxSteps; step++) {
-      final response = await _provider.generate(conversation, tools: tools);
+      final response = await _provider.generate(
+        conversation,
+        tools: tools,
+        options: options,
+      );
       final calls = response.toolCalls;
 
       if (calls.isEmpty) return response; // réponse finale → on sort
@@ -54,8 +59,9 @@ final class LlmClient {
   Future<String> generateText(
     List<Message> messages, {
     List<Tool> tools = const [],
+    GenerationOptions? options,
   }) async {
-    final response = await generate(messages, tools: tools);
+    final response = await generate(messages, tools: tools, options: options);
     return response.text;
   }
 
@@ -63,8 +69,14 @@ final class LlmClient {
   ///
   /// Filtre le flux d'événements pour ne garder que les fragments de texte.
   /// Note v1 : streaming et outils ne cohabitent pas — n'utilise pas d'outils ici.
-  Stream<String> streamText(List<Message> messages) async* {
-    await for (final event in _provider.generateStream(messages)) {
+  Stream<String> streamText(
+    List<Message> messages, {
+    GenerationOptions? options,
+  }) async* {
+    await for (final event in _provider.generateStream(
+      messages,
+      options: options,
+    )) {
       if (event is TextDelta) yield event.text;
     }
   }
@@ -74,8 +86,9 @@ final class LlmClient {
   Stream<LlmStreamEvent> streamEvents(
     List<Message> messages, {
     List<Tool> tools = const [],
+    GenerationOptions? options,
   }) {
-    return _provider.generateStream(messages, tools: tools);
+    return _provider.generateStream(messages, tools: tools, options: options);
   }
 
   /// Sorties structurées : force le modèle à remplir un « formulaire » typé.
@@ -89,6 +102,7 @@ final class LlmClient {
     required Map<String, dynamic> schema,
     required T Function(Map<String, dynamic> json) fromJson,
     String description = 'Réponds en remplissant ce format.',
+    GenerationOptions? options,
   }) async {
     const toolName = 'respond';
     final responseTool = Tool(
@@ -102,6 +116,7 @@ final class LlmClient {
       messages,
       tools: [responseTool],
       forceTool: toolName,
+      options: options,
     );
 
     final calls = response.toolCalls;

@@ -10,11 +10,13 @@ abstract interface class LlmProvider {
   /// Un aller-retour simple (chemin `Future`).
   ///
   /// [forceTool], s'il est fourni, contraint le modèle à appeler l'outil
-  /// portant ce nom — base des sorties structurées.
+  /// portant ce nom — base des sorties structurées. [options] porte les
+  /// réglages d'échantillonnage communs (température, top-p, stop).
   Future<LlmResponse> generate(
     List<Message> messages, {
     List<Tool> tools = const [],
     String? forceTool,
+    GenerationOptions? options,
   });
 
   /// La version streamée : émet des [LlmStreamEvent] au fil de la réponse,
@@ -22,5 +24,6 @@ abstract interface class LlmProvider {
   Stream<LlmStreamEvent> generateStream(
     List<Message> messages, {
     List<Tool> tools = const [],
+    GenerationOptions? options,
   });
 }
